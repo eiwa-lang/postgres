@@ -8,10 +8,10 @@
 
 import { Standard, NativeString } from "std.core"
 import { DbError, Connection, Statement, Result } from "std.db"
-import { NativePg, PgStatus } from "./native"
+import { NativePg, PgStatus } from "native"
 import { EventLoop } from "std.coroutines"
-import { PgResult } from "./result"
-import { PgStatement } from "./statement"
+import { PgResult } from "result"
+import { PgStatement } from "statement"
 import { Log } from "std.log"
 
 type PgConnection(val conn: Pointer, var closed: Bool = false): Connection, Closeable {

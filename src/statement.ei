@@ -1,8 +1,8 @@
 // postgres/statement.ei — PgStatement: prepared statement execution.
 
 import { Statement, Result } from "std.db"
-import { NativePg } from "./native"
-import { PgResult } from "./result"
+import { NativePg } from "native"
+import { PgResult } from "result"
 
 type PgStatement(
     val conn: Pointer,

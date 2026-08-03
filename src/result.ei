@@ -5,8 +5,8 @@
 
 import { Standard, NativeString } from "std.core"
 import { DbError, Result, Row } from "std.db"
-import { NativePg, PgStatus } from "./native"
-import { PgRow } from "./row"
+import { NativePg, PgStatus } from "native"
+import { PgRow } from "row"
 
 type PgResult(
     val rows: List<Row>,

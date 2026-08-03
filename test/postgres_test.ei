@@ -1,4 +1,4 @@
-import { Postgres } from "../src/postgres"
+import { Postgres } from ".src.postgres"
 import { DbError, Connection } from "std.db"
 
 // Helper — fresh isolated connection per test (uses a test database)
