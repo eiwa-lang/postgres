@@ -8,9 +8,6 @@
 import { List } from "std.collections"
 
 @Link("pq")
-@Header("<libpq-fe.h>")
-@Header("libpq/libpq_wrapper.h")
-@Include("./runtime/third_party/libpq")
 @Source("./runtime/third_party/libpq/libpq_wrapper.c")
 lib NativePg {
 
