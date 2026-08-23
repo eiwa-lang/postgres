@@ -10,7 +10,7 @@ import { List } from "std.collections"
 @Link("pq")
 @Header("<libpq-fe.h>")
 @Header("libpq/libpq_wrapper.h")
-@Include("src/runtime/third_party/libpq")
+@Include("./runtime/third_party/libpq")
 lib NativePg {
 
     // // --- Connection lifecycle ---
