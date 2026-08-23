@@ -11,6 +11,7 @@ import { List } from "std.collections"
 @Header("<libpq-fe.h>")
 @Header("libpq/libpq_wrapper.h")
 @Include("./runtime/third_party/libpq")
+@Source("./runtime/third_party/libpq/libpq_wrapper.c")
 lib NativePg {
 
     // // --- Connection lifecycle ---

@@ -14,37 +14,37 @@
 #define EIWA_LIBPQ_WRAPPER_H
 
 #include <libpq-fe.h>
+#include <stdlib.h>
 #include <alloca.h>
 
 // Forward declarations for the types the compiler will have generated.
-// The actual definitions come from the monomorphized code in temp_out.c —
-// this header only needs the layout, not the full definition.
-typedef struct {
-    const void* _type_desc;
-    const char* ptr;
-    int         length;
-} EiwaPqString;
+// LLVM backend layouts (the C backend was removed, 2026-08):
+//   - String is a `char*` (no {ptr,length} struct).
+//   - `List<String>` is a struct whose first field `items` points to a raw
+//     NativeArray buffer: [ i64 size, i64 capacity, i64 elements... ], where
+//     each element slot holds a String (char*) — NO `_type_desc` header.
 
+// NativeArray<String> raw buffer: header of 2 x i64, then `char*` elements.
 typedef struct {
-    EiwaPqString** data;
-    size_t         length;
-    size_t         capacity;
+    int64_t size;
+    int64_t capacity;
+    const char* data[0];
 } EiwaPqStringArray;
 
-// collections_List_String layout (the items field is the first non-descriptor field)
+// collections_List_String layout in the LLVM backend: `items` is the first
+// (and only relevant) field, at offset 0.
 typedef struct {
-    const void*       _type_desc;
     EiwaPqStringArray* items;
 } EiwaPqListString;
 
 // Execute a parameterized query using a collections_List_String as params.
 //
 // conn       — PGconn* (opaque to Eiwa)
-// command    — null-terminated SQL string (core_String.ptr)
+// command    — null-terminated SQL string (String = char*)
 // params_lst — collections_List_String* (may be NULL or have 0 items)
 //
 // Returns a PGresult* that the caller must pass to PQclear() after reading.
-static inline PGresult *eiwa_pq_exec_params(
+PGresult *eiwa_pq_exec_params(
     PGconn             *conn,
     const char         *command,
     EiwaPqListString   *params_lst)
@@ -52,13 +52,14 @@ static inline PGresult *eiwa_pq_exec_params(
     int nparams = 0;
     const char **param_values = NULL;
 
-    if (params_lst != NULL && params_lst->items != NULL && params_lst->items->length > 0) {
-        nparams = (int)params_lst->items->length;
-        // Stack-allocate the pointer array — avoids GC pressure for short queries.
-        param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
-        for (int i = 0; i < nparams; i++) {
-            EiwaPqString *s = params_lst->items->data[i];
-            param_values[i] = (s != NULL) ? s->ptr : NULL;
+    if (params_lst != NULL && params_lst->items != NULL) {
+        nparams = (int)params_lst->items->size;
+        if (nparams > 0) {
+            // Stack-allocate the pointer array — avoids GC pressure for short queries.
+            param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
+            for (int i = 0; i < nparams; i++) {
+                param_values[i] = params_lst->items->data[i];
+            }
         }
     }
 
@@ -75,7 +76,7 @@ static inline PGresult *eiwa_pq_exec_params(
 }
 
 // Execute a prepared statement using a collections_List_String as params.
-static inline PGresult *eiwa_pq_exec_prepared(
+PGresult *eiwa_pq_exec_prepared(
     PGconn             *conn,
     const char         *stmtName,
     EiwaPqListString   *params_lst)
@@ -83,12 +84,13 @@ static inline PGresult *eiwa_pq_exec_prepared(
     int nparams = 0;
     const char **param_values = NULL;
 
-    if (params_lst != NULL && params_lst->items != NULL && params_lst->items->length > 0) {
-        nparams = (int)params_lst->items->length;
-        param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
-        for (int i = 0; i < nparams; i++) {
-            EiwaPqString *s = params_lst->items->data[i];
-            param_values[i] = (s != NULL) ? s->ptr : NULL;
+    if (params_lst != NULL && params_lst->items != NULL) {
+        nparams = (int)params_lst->items->size;
+        if (nparams > 0) {
+            param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
+            for (int i = 0; i < nparams; i++) {
+                param_values[i] = params_lst->items->data[i];
+            }
         }
     }
 
@@ -104,26 +106,26 @@ static inline PGresult *eiwa_pq_exec_prepared(
 }
 
 // Convenience: execute a no-param query (wraps PQexec).
-static inline PGresult *eiwa_pq_exec(PGconn *conn, const char *command) {
+PGresult *eiwa_pq_exec(PGconn *conn, const char *command) {
     return PQexec(conn, command);
 }
 
 // Get a field value as a null-terminated C string.
 // Returns empty string if the value is NULL in the result set.
-static inline const char *eiwa_pq_getvalue(PGresult *res, int row, int col) {
+const char *eiwa_pq_getvalue(PGresult *res, int row, int col) {
     if (PQgetisnull(res, row, col)) return "";
     return PQgetvalue(res, row, col);
 }
 
 // Number of rows affected by a non-SELECT command (INSERT, UPDATE, DELETE).
-static inline int eiwa_pq_rows_affected(PGresult *res) {
+int eiwa_pq_rows_affected(PGresult *res) {
     const char *str = PQcmdTuples(res);
     if (!str || str[0] == '\0') return 0;
     return atoi(str);
 }
 
 // Column index by name (-1 if not found).
-static inline int eiwa_pq_field_index(PGresult *res, const char *name) {
+int eiwa_pq_field_index(PGresult *res, const char *name) {
     return PQfnumber(res, name);
 }
 
