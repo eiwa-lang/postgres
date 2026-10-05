@@ -5,8 +5,6 @@
 //
 // Parameterized queries use the synchronous wrapper eiwa_pq_exec_params
 // which converts List<String> to char** and calls PQexecParams.
-
-import { Standard, NativeString } from "std.core"
 import { DbError, Connection, Statement, Result } from "std.db"
 import { NativePg, PgStatus } from "native"
 import { EventLoop } from "std.coroutines"

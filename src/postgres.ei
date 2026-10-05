@@ -31,8 +31,8 @@ object Postgres {
     }
 
     fun pool(url: String, maxConnections: Int = 10): ConnectionPool<PgConnection> {
-        return ConnectionPool({ 
-            Postgres.connectRaw(url) 
+        return ConnectionPool<PgConnection>({
+            Postgres.connectRaw(url)
         }, maxConnections)
     }
 }

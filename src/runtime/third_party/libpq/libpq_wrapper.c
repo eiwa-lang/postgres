@@ -13,11 +13,33 @@
 //   - String is a `char*` (no {ptr,length} struct).
 //   - `List<String>` is a struct whose first field `items` points to a raw
 //     NativeArray buffer: [ i64 size, i64 capacity, i64 elements... ], where
-//     each element slot holds a String (char*) — NO `_type_desc` header.
+//     each element slot holds a POINTER to a heap String struct {char*, i64}
+//     — NO `_type_desc` header. Dereference once to reach the C string.
 
-#include <libpq-fe.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <alloca.h>
+
+// libpq forward declarations: PGconn/PGresult are opaque to this
+// wrapper, so no <libpq-fe.h> is needed to compile. Linking still
+// needs -lpq (via @Link("pq")); the toolchain forwards -I/-L/-l
+// from CLI flags, and Homebrew keg-only paths work with e.g.
+// eiwa build -I/opt/homebrew/opt/libpq/include -L/opt/homebrew/opt/libpq/lib
+typedef struct pg_conn PGconn;
+typedef struct pg_result PGresult;
+typedef unsigned int Oid;
+PGresult *PQexecParams(PGconn *conn, const char *command, int nparams,
+    const Oid *paramTypes, const char *const *paramValues,
+    const int *paramLengths, const int *paramFormats, int resultFormat);
+PGresult *PQexecPrepared(PGconn *conn, const char *stmtName, int nparams,
+    const char *const *paramValues, const int *paramLengths,
+    const int *paramFormats, int resultFormat);
+PGresult *PQexec(PGconn *conn, const char *command);
+int PQgetisnull(const PGresult *res, int row, int col);
+char *PQgetvalue(const PGresult *res, int row, int col);
+char *PQcmdTuples(PGresult *res);
+int PQfnumber(const PGresult *res, const char *field_name);
 
 // NativeArray<String> raw buffer: header of 2 x i64, then `char*` elements.
 typedef struct {
@@ -53,7 +75,7 @@ PGresult *eiwa_pq_exec_params(
             // Stack-allocate the pointer array — avoids GC pressure for short queries.
             param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
             for (int i = 0; i < nparams; i++) {
-                param_values[i] = params_lst->items->data[i];
+                param_values[i] = *(const char **)params_lst->items->data[i];
             }
         }
     }
@@ -84,7 +106,7 @@ PGresult *eiwa_pq_exec_prepared(
         if (nparams > 0) {
             param_values = (const char **)alloca((size_t)nparams * sizeof(char *));
             for (int i = 0; i < nparams; i++) {
-                param_values[i] = params_lst->items->data[i];
+                param_values[i] = *(const char **)params_lst->items->data[i];
             }
         }
     }
