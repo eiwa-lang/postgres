@@ -62,7 +62,7 @@ type PgResult(
             var col = 0
             while (col < ncols) {
                 val isNull = NativePg.isnull(raw, r, col) != 0
-                val valStr = if (isNull) "" else copyCStr(NativePg.getvalue(raw, r, col), 512)
+                val valStr = if (isNull) "" else copyCStr(NativePg.getvalue(raw, r, col), NativePg.getlength(raw, r, col))
                 values.add(valStr)
                 nullFlags.add(isNull)
                 col = col + 1

@@ -67,6 +67,9 @@ lib NativePg {
     @Alias("eiwa_pq_getvalue")
     fun getvalue(result: Pointer, row: Int, col: Int): Pointer
 
+    @Alias("PQgetlength")
+    fun getlength(result: Pointer, row: Int, col: Int): Int
+
     @Alias("PQgetisnull")
     fun isnull(result: Pointer, row: Int, col: Int): Int
 

@@ -34,7 +34,7 @@ test "postgres: insert and query rows" {
     val result = db.query("SELECT name FROM pg_test_users ORDER BY id")
     val rows = result.rows()
     val names = MutableList<String>()
-    for (row in result.rows()) {
+    for (result.rows()) { row ->
         val name = row.string("name")
         names.add(name)
     }
@@ -68,7 +68,7 @@ test "postgres: prepare and execute a named statement" {
     val stmt = db.prepare("SELECT name FROM pg_test_users WHERE name = $1")
     val result = stmt.query(["Charlie"])
     val names = MutableList<String>()
-    for (row in result.rows()) {
+    for (result.rows()) { row ->
         names.add(row.string("name"))
     }
 
@@ -85,7 +85,7 @@ test "postgres: row returns correct int and string values" {
     db.execute("INSERT INTO pg_test_users(name) VALUES($1)", ["TypeCheck"])
 
     val result = db.query("SELECT id, name FROM pg_test_users")
-    for (row in result.rows()) {
+    for (result.rows()) { row ->
         assert(row.int("id") > 0)
         assert(row.string("name") == "TypeCheck")
     }
@@ -101,7 +101,7 @@ test "postgres: two concurrent queries do not block each other" {
         val db1 = testDb()
         var result = ""
         val r = db1.query("SELECT 'conn1' AS tag")
-        for (row in r.rows()) {
+        for (r.rows()) { row ->
             result = row.string("tag")
         }
         db1.close()
@@ -112,7 +112,7 @@ test "postgres: two concurrent queries do not block each other" {
     val t2 = task {
         var result = ""
         val r = db2.query("SELECT 'conn2' AS tag")
-        for (row in r.rows()) {
+        for (r.rows()) { row ->
             result = row.string("tag")
         }
         result
@@ -134,7 +134,7 @@ test "postgres: query throws on closed connection" {
         db.query("SELECT 1")
     } catch (e: DbError) {
         caught = true
-        assert(e.message() == "Connection is closed")
+        assert(e.message == "Connection is closed")
     }
     assert(caught == true)
 }
@@ -147,7 +147,7 @@ test "postgres: execute throws on closed connection" {
         db.execute("SELECT 1")
     } catch (e: DbError) {
         caught = true
-        assert(e.message() == "Connection is closed")
+        assert(e.message == "Connection is closed")
     }
     assert(caught == true)
 }
@@ -160,7 +160,7 @@ test "postgres: prepare throws on closed connection" {
         db.prepare("SELECT 1")
     } catch (e: DbError) {
         caught = true
-        assert(e.message() == "Connection is closed")
+        assert(e.message == "Connection is closed")
     }
     assert(caught == true)
 }
@@ -179,7 +179,7 @@ test "postgres: pool executes queries transparently" {
     val pool = Postgres.pool("postgres://leodouglas@localhost/eiwa", 3)
     val res = pool.query("SELECT 42 AS val")
     var value = 0
-    for (row in res.rows()) {
+    for (res.rows()) { row ->
         value = row.int("val")
     }
     assert(value == 42)
@@ -209,7 +209,7 @@ test "postgres: pool transactions commit successfully" {
 
     val res = pool.query("SELECT COUNT(*) AS total FROM pg_test_users")
     var total = 0
-    for (row in res.rows()) {
+    for (res.rows()) { row ->
         total = row.int("total")
     }
     assert(total == 2)
@@ -222,21 +222,21 @@ test "postgres: pool handles concurrent tasks under connection limit" {
     val t1 = task {
         val r = pool.query("SELECT 1 AS num")
         var n = 0
-        for (row in r.rows()) { n = row.int("num") }
+        for (r.rows()) { row -> n = row.int("num") }
         n
     }
 
     val t2 = task {
         val r = pool.query("SELECT 2 AS num")
         var n = 0
-        for (row in r.rows()) { n = row.int("num") }
+        for (r.rows()) { row -> n = row.int("num") }
         n
     }
 
     val t3 = task {
         val r = pool.query("SELECT 3 AS num")
         var n = 0
-        for (row in r.rows()) { n = row.int("num") }
+        for (r.rows()) { row -> n = row.int("num") }
         n
     }
 
@@ -247,3 +247,20 @@ test "postgres: pool handles concurrent tasks under connection limit" {
     pool.close()
 }
 
+
+test "postgres: values longer than 512 chars round-trip whole" {
+    val db = testDb()
+    db.execute("DROP TABLE IF EXISTS pg_test_long")
+    db.execute("CREATE TABLE pg_test_long (id SERIAL PRIMARY KEY, payload TEXT NOT NULL)")
+    var big = ""
+    repeat(60) { i ->
+        big = big + "abcdefghijklmnopqrstuvwxyz0123456789"
+    }
+    assert(big.length == 2160, "fixture")
+    db.execute("INSERT INTO pg_test_long(payload) VALUES($1)", [big])
+    val rows = db.query("SELECT payload FROM pg_test_long").rows()
+    assert(rows.size() == 1, "count")
+    assert(rows.get(0).string("payload") == big, "whole")
+    db.execute("DROP TABLE pg_test_long")
+    db.close()
+}
